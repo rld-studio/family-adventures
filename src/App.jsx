@@ -336,7 +336,7 @@ function LoginScreen({ onLogin }) {
     <div className="app">
       <div className="screen">
         <form onSubmit={submit} className="login-form">
-          <h2>The Family Board</h2>
+          <h2>The Family Adventure Board</h2>
           <p>Pick who you are and enter the family password.</p>
           <div className="login-people">
             {PEOPLE.map(p => (
@@ -607,7 +607,7 @@ export default function App() {
       <div className="topbar">
         <div className="topbar-row">
           <div className="brand">
-            <h1>The Family <span className="mark">Board</span></h1>
+            <h1>The Family <span className="mark">Adventure Board</span></h1>
             <p>“What sounds even slightly worth trying?”</p>
           </div>
 
