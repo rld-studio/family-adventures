@@ -8,6 +8,8 @@ import { normalizeCard, uid, nowISO } from "./model.js";
 /* ------------------------------------------------------------------ */
 const CACHE_KEY = "familyBoard.cache.v1";
 const PERSON_KEY = "familyBoard.person";
+const AUTH_KEY = "familyBoard.auth";
+const BOARD_PASSWORD = import.meta.env.VITE_BOARD_PASSWORD || "familyfun";
 
 const LANES = [
   { id: "Ideas",      label: "Ideas",          color: "#8A8578" },
@@ -18,9 +20,10 @@ const LANES = [
 ];
 
 const PEOPLE = [
-  { id: "dad",      label: "Dad",      cls: "dad",      dot: "#2E6E5A" },
-  { id: "son",      label: "Son",      cls: "son",      dot: "#7D5BA6" },
-  { id: "daughter", label: "Daughter", cls: "daughter", dot: "#C4695E" },
+  { id: "randy",   label: "Randy",   cls: "randy",   dot: "#2E6E5A" },
+  { id: "pearl",   label: "Pearl",   cls: "pearl",   dot: "#7D5BA6" },
+  { id: "forrest", label: "Forrest", cls: "forrest", dot: "#C4695E" },
+  { id: "tricia",  label: "Tricia",  cls: "tricia",  dot: "#EAB13C" },
 ];
 
 const REACTIONS = [
@@ -251,20 +254,24 @@ function CardModal({ initial, person, onSave, onClose, onDelete }) {
           </div>
 
           <div className="rx-block">
-            {PEOPLE.map(p => (
-              <div key={p.id}>
-                <div className="rx-person">
-                  <Avatar person={p.id} />
-                  <span className="name">{p.label}</span>
+            {PEOPLE.map(p => {
+              const isMe = p.id === person;
+              return (
+                <div key={p.id}>
+                  <div className="rx-person">
+                    <Avatar person={p.id} />
+                    <span className="name">{p.label}{isMe ? " (you)" : ""}</span>
+                  </div>
+                  <div className="rx-opts">
+                    {REACTIONS.map(r => (
+                      <button key={r.id} data-rx={r.id} data-on={c.reactions[p.id] === r.id}
+                        disabled={!isMe}
+                        onClick={() => isMe && setReaction(p.id, r.id)}>{r.label}</button>
+                    ))}
+                  </div>
                 </div>
-                <div className="rx-opts">
-                  {REACTIONS.map(r => (
-                    <button key={r.id} data-rx={r.id} data-on={c.reactions[p.id] === r.id}
-                      onClick={() => setReaction(p.id, r.id)}>{r.label}</button>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="comments">
@@ -309,9 +316,52 @@ function CardModal({ initial, person, onSave, onClose, onDelete }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Login screen                                                       */
+/* ------------------------------------------------------------------ */
+function LoginScreen({ onLogin }) {
+  const [pw, setPw] = useState("");
+  const [who, setWho] = useState("");
+  const [err, setErr] = useState("");
+
+  const submit = e => {
+    e.preventDefault();
+    if (!who) { setErr("Pick who you are"); return; }
+    if (pw !== BOARD_PASSWORD) { setErr("Wrong password"); return; }
+    localStorage.setItem(AUTH_KEY, "yes");
+    localStorage.setItem(PERSON_KEY, who);
+    onLogin(who);
+  };
+
+  return (
+    <div className="app">
+      <div className="screen">
+        <form onSubmit={submit} className="login-form">
+          <h2>The Family Board</h2>
+          <p>Pick who you are and enter the family password.</p>
+          <div className="login-people">
+            {PEOPLE.map(p => (
+              <button type="button" key={p.id} className={"login-person" + (who === p.id ? " active" : "")}
+                data-who={p.id} onClick={() => { setWho(p.id); setErr(""); }}>
+                <div className={"avatar av-" + p.cls}>{p.label[0]}</div>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <input type="password" value={pw} onChange={e => { setPw(e.target.value); setErr(""); }}
+            placeholder="Family password" className="login-pw" autoFocus />
+          {err && <div className="login-err">{err}</div>}
+          <button type="submit" className="btn btn-primary" style={{ width: "100%" }}>Enter</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  App                                                                */
 /* ------------------------------------------------------------------ */
 export default function App() {
+  const [authed, setAuthed] = useState(() => localStorage.getItem(AUTH_KEY) === "yes");
   const [cards, setCards] = useState(() => {
     try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return Array.isArray(c) ? c : null; }
     catch { return null; }
@@ -320,7 +370,7 @@ export default function App() {
   const [errMsg, setErrMsg] = useState("");
   const [sync, setSync] = useState("ok"); // ok | saving | error
 
-  const [person, setPerson] = useState(() => localStorage.getItem(PERSON_KEY) || "dad");
+  const [person, setPerson] = useState(() => localStorage.getItem(PERSON_KEY) || "randy");
   const [filters, setFilters] = useState({ q: "", category: "", time: "", cost: "", energy: "", status: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [activeLane, setActiveLane] = useState("Ideas");
@@ -492,6 +542,14 @@ export default function App() {
 
   const clearFilters = () => setFilters({ q: "", category: "", time: "", cost: "", energy: "", status: "" });
 
+  const logout = () => {
+    localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(PERSON_KEY);
+    setAuthed(false);
+  };
+
+  if (!authed) return <LoginScreen onLogin={who => { setPerson(who); setAuthed(true); }} />;
+
   /* ---- setup / loading / error screens ---- */
   if (phase === "config") {
     return (
@@ -554,15 +612,13 @@ export default function App() {
           </div>
 
           <div className="whois">
-            <span>You are</span>
             <div className="seg">
-              {PEOPLE.map(p => (
-                <button key={p.id} data-who={p.id} data-on={person === p.id} onClick={() => setPerson(p.id)}>
-                  <span className="who-dot" style={{ background: person === p.id ? "#fff" : p.dot }} />
-                  {p.label}
-                </button>
-              ))}
+              <button data-who={person} data-on="true" style={{ cursor: "default" }}>
+                <span className="who-dot" style={{ background: "#fff" }} />
+                {PEOPLE.find(p => p.id === person)?.label}
+              </button>
             </div>
+            <button className="btn-logout" onClick={logout} title="Log out">Log out</button>
           </div>
 
           <div className="sync-pill" data-state={sync} title="This board is shared with the whole family">

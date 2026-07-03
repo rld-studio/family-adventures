@@ -16,7 +16,7 @@ export function normalizeCard(c = {}) {
     starterVersion: c.starterVersion || "",
     goal: c.goal || "",
     status: c.status || "Ideas",
-    reactions: { dad: null, son: null, daughter: null, ...(c.reactions || {}) },
+    reactions: { randy: null, pearl: null, forrest: null, tricia: null, ...(c.reactions || {}) },
     comments: Array.isArray(c.comments) ? c.comments : [],
     memoryNote: c.memoryNote || "",
     wouldDoAgain: c.wouldDoAgain ?? null,
